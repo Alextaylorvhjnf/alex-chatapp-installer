@@ -207,6 +207,7 @@ ELEMENT
 chown -R 991:991 "$BASE_DIR/synapse" 2>/dev/null || true
 print_ok "Configuration generated"
 
+rm -rf "$BASE_DIR/postgres"
 print_info "Starting Docker services..."
 cd "$BASE_DIR"
 docker compose down --remove-orphans 2>/dev/null || true
