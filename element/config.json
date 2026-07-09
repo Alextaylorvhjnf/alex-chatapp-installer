@@ -1,0 +1,11 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://matrix.shikpooshaan.ir",
+      "server_name": "shikpooshaan.ir"
+    }
+  },
+  "brand": "ChatApp",
+  "disable_custom_urls": false,
+  "disable_registration": false
+}

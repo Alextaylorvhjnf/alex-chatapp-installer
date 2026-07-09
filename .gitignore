@@ -1,0 +1,14 @@
+# فایل‌های حساس
+synapse/homeserver.yaml
+*.log
+*.pem
+*.key
+*.signing.key
+
+# دیتابیس و volume ها
+postgres_data/
+
+# فایل‌های سیستمی
+__pycache__/
+*.pyc
+.DS_Store

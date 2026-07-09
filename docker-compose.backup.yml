@@ -1,0 +1,42 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: chatapp-postgres
+    restart: unless-stopped
+    networks:
+      - chatapp
+
+  synapse:
+    image: matrixdotorg/synapse:v1.156.0
+    container_name: chatapp-synapse
+    restart: unless-stopped
+    ports:
+      - "8008:8008"
+      - "8448:8448"
+    networks:
+      - chatapp
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: chatapp-coturn
+    restart: unless-stopped
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "5349:5349"
+      - "5349:5349/udp"
+      - "49160-49200:49160-49200/udp"
+
+    command:
+      - -n
+      - --log-file=stdout
+      - --realm=shikpooshaan.ir
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=6f1e4518d8208cbc2f3e4aba926dee30f13363fd2d6b616922190d31a6d31f2d
+      - --listening-ip=0.0.0.0
+      - --relay-ip=172.18.0.2
+      - --external-ip=45.129.36.41/172.18.0.2
+      - --min-port=49160
+      - --max-port=49200
