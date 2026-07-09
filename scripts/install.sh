@@ -3,7 +3,6 @@ set -e
 
 BASE_DIR="/opt/chatapp"
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -14,6 +13,9 @@ print_info() { echo -e "${CYAN}[i]${NC} $1"; }
 print_ok() { echo -e "${GREEN}[✔]${NC} $1"; }
 print_error() { echo -e "${RED}[✘]${NC} $1"; }
 
+CHAT_DOMAIN="chatapp.shikpooshaan.ir"
+MATRIX_DOMAIN="matrix.shikpooshaan.ir"
+
 clear
 echo
 echo "========================================"
@@ -21,20 +23,11 @@ echo "      Alex ChatApp Installation"
 echo "========================================"
 echo
 
-# Check root
-if [ "$EUID" -ne 0 ]; then
-    print_error "Please run as root"
-    exit 1
-fi
+[ "$EUID" -ne 0 ] && { print_error "Please run as root"; exit 1; }
 
-# Check OS
 print_info "Checking operating system..."
-if [ -f /etc/os-release ]; then
-    source /etc/os-release
-    echo "OS: $PRETTY_NAME"
-fi
+[ -f /etc/os-release ] && source /etc/os-release && echo "OS: $PRETTY_NAME"
 
-# Check Docker
 print_info "Checking Docker..."
 if ! command -v docker &>/dev/null; then
     print_info "Docker not found. Installing..."
@@ -42,33 +35,16 @@ if ! command -v docker &>/dev/null; then
 fi
 print_ok "Docker installed"
 
-# Check Docker Compose
 print_info "Checking Docker Compose..."
-if ! docker compose version &>/dev/null; then
-    print_error "Docker Compose not found"
-    exit 1
-fi
+docker compose version &>/dev/null || { print_error "Docker Compose not found"; exit 1; }
 print_ok "Docker Compose plugin available"
 
-echo
-echo "========================================"
-echo "Domain Configuration"
-echo "========================================"
-echo
-
-read -p "Enter ChatApp domain: " CHAT_DOMAIN
-read -p "Enter Matrix domain: " MATRIX_DOMAIN
-
-if [ -z "$CHAT_DOMAIN" ] || [ -z "$MATRIX_DOMAIN" ]; then
-    print_error "Domain cannot be empty"
-    exit 1
-fi
-
 print_info "Generating security secrets..."
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
-REGISTRATION_SECRET=$(openssl rand -hex 16)
-MACAROON_SECRET=$(openssl rand -hex 16)
-FORM_SECRET=$(openssl rand -hex 16)
+POSTGRES_PASSWORD="aA0922ny@"
+REGISTRATION_SECRET="6Ki+&hfWyjk2MY46mFDGTDrSQ9F#l3r&MilFALk8+qk5uQ,_s~"
+MACAROON_SECRET="V0yx*mNHzx9oav_noGTEq^k:44vMGJolq1ivZyGx8pfrFl-yN~"
+FORM_SECRET="ck+g,&7aAEHIwQwBgFde-=1I^CopNPt~8UY0exp;Ay2SesSNXL"
+TURN_SECRET="6f1e4518d8208cbc2f3e4aba926dee30f13363fd2d6b616922190d31a6d31f2d"
 
 cat > "$BASE_DIR/.env" <<ENVEOF
 CHAT_DOMAIN=$CHAT_DOMAIN
@@ -77,6 +53,7 @@ POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 REGISTRATION_SECRET=$REGISTRATION_SECRET
 MACAROON_SECRET=$MACAROON_SECRET
 FORM_SECRET=$FORM_SECRET
+TURN_SECRET=$TURN_SECRET
 ENVEOF
 chmod 600 "$BASE_DIR/.env"
 print_ok "Environment created"
@@ -147,6 +124,27 @@ services:
       timeout: 5s
       retries: 5
 
+  coturn:
+    image: coturn/coturn:latest
+    container_name: chatapp-coturn
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - turnserver
+      - --log-file=stdout
+      - --listening-port=3478
+      - --tls-listening-port=5349
+      - --min-port=49160
+      - --max-port=49200
+      - --realm=$CHAT_DOMAIN
+      - --server-name=$CHAT_DOMAIN
+      - --lt-cred-mech
+      - --use-auth-secret
+      - --static-auth-secret=$TURN_SECRET
+      - --no-cli
+      - --no-tlsv1
+      - --no-tlsv1_1
+
 networks:
   chatapp:
     driver: bridge
@@ -189,6 +187,13 @@ trusted_key_servers:
 enable_registration: true
 enable_registration_without_verification: true
 max_upload_size: 500M
+turn_uris:
+  - "turn:$CHAT_DOMAIN:3478?transport=udp"
+  - "turn:$CHAT_DOMAIN:3478?transport=tcp"
+  - "turns:$CHAT_DOMAIN:5349?transport=udp"
+  - "turns:$CHAT_DOMAIN:5349?transport=tcp"
+turn_shared_secret: "$TURN_SECRET"
+turn_user_lifetime: 86400000
 HOMESERVER
 
 print_info "Generating element config..."
@@ -200,14 +205,18 @@ cat > "$BASE_DIR/element/config.json" <<ELEMENT
             "server_name": "$MATRIX_DOMAIN"
         }
     },
-    "brand": "Alex ChatApp"
+    "brand": "Alex ChatApp",
+    "features": {
+        "feature_video_rooms": true,
+        "feature_group_calls": true,
+        "feature_element_call_video": true
+    }
 }
 ELEMENT
 
 chown -R 991:991 "$BASE_DIR/synapse" 2>/dev/null || true
 print_ok "Configuration generated"
 
-# Clean postgres for fresh start
 print_info "Starting Docker services..."
 rm -rf "$BASE_DIR/postgres"
 cd "$BASE_DIR"
@@ -216,17 +225,13 @@ docker compose up -d
 sleep 30
 print_ok "Containers started"
 
-# =====================================
 # Setup Nginx and SSL
-# =====================================
 print_info "Setting up Nginx and SSL..."
-
 apt install -y nginx certbot python3-certbot-nginx 2>/dev/null
 
 systemctl stop apache2 2>/dev/null || true
 systemctl disable apache2 2>/dev/null || true
 
-# STEP 1: Temp config WITHOUT SSL (so certbot can verify)
 cat > /etc/nginx/sites-available/chatapp <<NGINX
 server {
     listen 80;
@@ -265,17 +270,15 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl restart nginx
 print_ok "Nginx temp config ready"
 
-# STEP 2: Get SSL
 print_info "Getting SSL certificates..."
-if certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN --non-interactive --agree-tos --email admin@${CHAT_DOMAIN#*.} 2>&1; then
+if certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN --non-interactive --agree-tos --email admin@shikpooshaan.ir 2>&1; then
     SSL_OK=1
     print_ok "SSL obtained"
 else
     SSL_OK=0
-    print_error "SSL failed - will continue with HTTP only"
+    print_error "SSL failed"
 fi
 
-# STEP 3: Final config with SSL (if obtained)
 if [ "$SSL_OK" = "1" ]; then
     cat > /etc/nginx/sites-available/chatapp <<NGINX
 server {
@@ -327,23 +330,23 @@ server {
 NGINX
     nginx -t && systemctl reload nginx
     print_ok "SSL configured"
-else
-    print_error "SSL failed. Run manually: certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN"
 fi
+
+# Firewall for Coturn
+ufw allow 3478/tcp 2>/dev/null
+ufw allow 3478/udp 2>/dev/null
+ufw allow 5349/tcp 2>/dev/null
+ufw allow 5349/udp 2>/dev/null
+ufw allow 49160:49200/udp 2>/dev/null
 
 echo
 echo "========================================"
 echo " Installation Finished"
 echo "========================================"
 echo
-if [ "$SSL_OK" = "1" ]; then
-    echo "ChatApp: https://$CHAT_DOMAIN"
-    echo "Matrix:  https://$MATRIX_DOMAIN"
-else
-    echo "ChatApp: http://$CHAT_DOMAIN"
-    echo "Matrix:  http://$MATRIX_DOMAIN"
-fi
+echo "ChatApp: https://$CHAT_DOMAIN"
+echo "Matrix:  https://$MATRIX_DOMAIN"
 echo
-print_ok "Done!"
+print_ok "Done! Voice & Video calls enabled."
 echo
 read -p "Press Enter..."
