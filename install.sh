@@ -43,7 +43,7 @@ fi
 # NORMAL MENU MODE
 # =============================================
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_DIR="$BASE_DIR/scripts"
+SCRIPTS_DIR="/opt/chatapp/scripts"
 
 logo() {
     echo -e "${CYAN}"
