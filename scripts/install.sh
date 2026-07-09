@@ -3,7 +3,7 @@ set -e
 
 BASE_DIR="/opt/chatapp"
 
-# Simple print functions (no dependency on functions.sh)
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -207,44 +207,37 @@ ELEMENT
 chown -R 991:991 "$BASE_DIR/synapse" 2>/dev/null || true
 print_ok "Configuration generated"
 
-rm -rf "$BASE_DIR/postgres"
+# Clean postgres for fresh start
 print_info "Starting Docker services..."
+rm -rf "$BASE_DIR/postgres"
 cd "$BASE_DIR"
 docker compose down --remove-orphans 2>/dev/null || true
 docker compose up -d
 sleep 30
 print_ok "Containers started"
 
-echo "========================================"
-echo
-echo
-echo
-echo "========================================"
-echo " Installation Finished"
-echo "========================================"
-echo
-echo "ChatApp: https://$CHAT_DOMAIN"
-echo "Matrix:  https://$MATRIX_DOMAIN"
-echo
-print_ok "Done!"
-
-# ==============================
-# SSL Setup
-# ==============================
+# Setup Nginx and SSL
 print_info "Setting up Nginx and SSL..."
 
-# Install Nginx and Certbot
 apt install -y nginx certbot python3-certbot-nginx 2>/dev/null
 
-# Stop Apache if running
-systemctl stop apache2 2>/dev/null
-systemctl disable apache2 2>/dev/null
+systemctl stop apache2 2>/dev/null || true
+systemctl disable apache2 2>/dev/null || true
 
-# Nginx config
 cat > /etc/nginx/sites-available/chatapp <<NGINX
 server {
     listen 80;
     server_name $CHAT_DOMAIN;
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $CHAT_DOMAIN;
+
+    ssl_certificate /etc/letsencrypt/live/$CHAT_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$CHAT_DOMAIN/privkey.pem;
+
     location / {
         proxy_pass http://localhost:8080;
         proxy_set_header Host \$host;
@@ -257,6 +250,16 @@ server {
 server {
     listen 80;
     server_name $MATRIX_DOMAIN;
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $MATRIX_DOMAIN;
+
+    ssl_certificate /etc/letsencrypt/live/$CHAT_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$CHAT_DOMAIN/privkey.pem;
+
     location /_matrix {
         proxy_pass http://localhost:8008;
         proxy_set_header Host \$host;
@@ -264,6 +267,7 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
+
     location /_synapse {
         proxy_pass http://localhost:8008;
         proxy_set_header Host \$host;
@@ -274,19 +278,28 @@ server {
 }
 NGINX
 
-ln -sf /etc/nginx/sites-available/chatapp /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/chatapp /etc/nginx/sites-enabled/chatapp
+rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl restart nginx
 
 # Get SSL
 print_info "Getting SSL certificates..."
-certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN --non-interactive --agree-tos --email admin@${CHAT_DOMAIN#*.} 2>/dev/null || {
-    print_error "SSL failed. You can run: certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN"
+certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN --non-interactive --agree-tos --email admin@${CHAT_DOMAIN#*.} 2>&1 || {
+    print_error "SSL failed. Check DNS and run: certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN"
 }
 
+# Reload Nginx with final config after SSL
+nginx -t && systemctl reload nginx
 print_ok "SSL configured"
 
-
-
+echo
+echo "========================================"
+echo " Installation Finished"
+echo "========================================"
+echo
+echo "ChatApp: https://$CHAT_DOMAIN"
+echo "Matrix:  https://$MATRIX_DOMAIN"
+echo
+print_ok "Done!"
 echo
 read -p "Press Enter..."
-
