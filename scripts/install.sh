@@ -227,5 +227,66 @@ echo "ChatApp: https://$CHAT_DOMAIN"
 echo "Matrix:  https://$MATRIX_DOMAIN"
 echo
 print_ok "Done!"
+
+# ==============================
+# SSL Setup
+# ==============================
+print_info "Setting up Nginx and SSL..."
+
+# Install Nginx and Certbot
+apt install -y nginx certbot python3-certbot-nginx 2>/dev/null
+
+# Stop Apache if running
+systemctl stop apache2 2>/dev/null
+systemctl disable apache2 2>/dev/null
+
+# Nginx config
+cat > /etc/nginx/sites-available/chatapp <<NGINX
+server {
+    listen 80;
+    server_name $CHAT_DOMAIN;
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name $MATRIX_DOMAIN;
+    location /_matrix {
+        proxy_pass http://localhost:8008;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location /_synapse {
+        proxy_pass http://localhost:8008;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+NGINX
+
+ln -sf /etc/nginx/sites-available/chatapp /etc/nginx/sites-enabled/
+nginx -t && systemctl restart nginx
+
+# Get SSL
+print_info "Getting SSL certificates..."
+certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN --non-interactive --agree-tos --email admin@${CHAT_DOMAIN#*.} 2>/dev/null || {
+    print_error "SSL failed. You can run: certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN"
+}
+
+print_ok "SSL configured"
+
+
+
 echo
 read -p "Press Enter..."
+
