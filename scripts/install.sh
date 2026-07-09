@@ -1,13 +1,23 @@
 #!/bin/bash
-
 set -e
 
 BASE_DIR="/opt/chatapp"
 SCRIPT_DIR="$BASE_DIR/scripts"
 
 # Source functions
-[ -f "$SCRIPT_DIR/functions.sh" ] && source "$SCRIPT_DIR/functions.sh" || { echo "Error: functions.sh not found"; exit 1; }
-[ -f "$SCRIPT_DIR/docker.sh" ] && source "$SCRIPT_DIR/docker.sh" || { echo "Error: docker.sh not found"; exit 1; }
+if [ -f "$SCRIPT_DIR/functions.sh" ]; then
+    source "$SCRIPT_DIR/functions.sh"
+else
+    echo "Error: functions.sh not found in $SCRIPT_DIR"
+    exit 1
+fi
+
+if [ -f "$SCRIPT_DIR/docker.sh" ]; then
+    source "$SCRIPT_DIR/docker.sh"
+else
+    echo "Error: docker.sh not found in $SCRIPT_DIR"
+    exit 1
+fi
 
 clear
 echo
@@ -16,10 +26,20 @@ echo "      Alex ChatApp Installation"
 echo "========================================"
 echo
 
-require_root
+# Check root
+if [ "$EUID" -ne 0 ]; then
+    print_error "Please run as root"
+    exit 1
+fi
 
 print_info "Checking operating system..."
-[ -f /etc/os-release ] && source /etc/os-release && echo "OS: $PRETTY_NAME" || { print_error "Unknown OS"; exit 1; }
+if [ -f /etc/os-release ]; then
+    source /etc/os-release
+    echo "OS: $PRETTY_NAME"
+else
+    print_error "Unknown OS"
+    exit 1
+fi
 
 print_info "Checking Docker..."
 check_docker
@@ -30,11 +50,14 @@ echo "========================================"
 echo "Domain Configuration"
 echo "========================================"
 echo
+
 read -p "Enter ChatApp domain: " CHAT_DOMAIN
 read -p "Enter Matrix domain: " MATRIX_DOMAIN
 
-[ -z "$CHAT_DOMAIN" ] && { print_error "ChatApp domain cannot be empty"; exit 1; }
-[ -z "$MATRIX_DOMAIN" ] && { print_error "Matrix domain cannot be empty"; exit 1; }
+if [ -z "$CHAT_DOMAIN" ] || [ -z "$MATRIX_DOMAIN" ]; then
+    print_error "Domain cannot be empty"
+    exit 1
+fi
 
 print_info "Generating security secrets..."
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
@@ -42,7 +65,8 @@ REGISTRATION_SECRET=$(openssl rand -hex 16)
 MACAROON_SECRET=$(openssl rand -hex 16)
 FORM_SECRET=$(openssl rand -hex 16)
 
-cat > /opt/chatapp/.env <<ENVEOF
+# Save to .env
+cat > "$BASE_DIR/.env" <<ENVEOF
 CHAT_DOMAIN=$CHAT_DOMAIN
 MATRIX_DOMAIN=$MATRIX_DOMAIN
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
@@ -50,17 +74,16 @@ REGISTRATION_SECRET=$REGISTRATION_SECRET
 MACAROON_SECRET=$MACAROON_SECRET
 FORM_SECRET=$FORM_SECRET
 ENVEOF
-chmod 600 /opt/chatapp/.env
+chmod 600 "$BASE_DIR/.env"
 print_ok "Environment created"
 
+# Create directories
 print_info "Creating directories..."
 mkdir -p "$BASE_DIR"/{postgres,synapse,element,backups}
 print_ok "Directories created"
 
-print_info "Generating configs..."
-source /opt/chatapp/.env
-
-# docker-compose.yml
+# Generate docker-compose.yml
+print_info "Generating docker-compose.yml..."
 cat > "$BASE_DIR/docker-compose.yml" <<COMPOSE
 services:
   postgres:
@@ -127,11 +150,11 @@ networks:
     driver: bridge
 COMPOSE
 
-# homeserver.yaml
+# Generate homeserver.yaml
+print_info "Generating homeserver.yaml..."
 cat > "$BASE_DIR/synapse/homeserver.yaml" <<HOMESERVER
 server_name: "$MATRIX_DOMAIN"
 pid_file: /data/homeserver.pid
-
 listeners:
   - port: 8008
     type: http
@@ -144,7 +167,6 @@ listeners:
           - client
           - federation
         compress: false
-
 database:
   name: psycopg2
   args:
@@ -155,23 +177,21 @@ database:
     port: 5432
     cp_min: 5
     cp_max: 10
-
 media_store_path: /data/media_store
 registration_shared_secret: "$REGISTRATION_SECRET"
 report_stats: false
 macaroon_secret_key: "$MACAROON_SECRET"
 form_secret: "$FORM_SECRET"
 signing_key_path: "/data/$MATRIX_DOMAIN.signing.key"
-
 trusted_key_servers:
   - server_name: "matrix.org"
-
 enable_registration: true
 enable_registration_without_verification: true
 max_upload_size: 500M
 HOMESERVER
 
-# element config.json
+# Generate element config
+print_info "Generating element config..."
 cat > "$BASE_DIR/element/config.json" <<ELEMENT
 {
     "default_server_config": {
@@ -187,30 +207,36 @@ cat > "$BASE_DIR/element/config.json" <<ELEMENT
 }
 ELEMENT
 
-# Fix permissions
+# Fix permissions for synapse
 chown -R 991:991 "$BASE_DIR/synapse" 2>/dev/null || true
-
 print_ok "Configuration generated"
 
+# Start Docker
 print_info "Starting Docker services..."
 cd "$BASE_DIR"
+docker compose down --remove-orphans 2>/dev/null || true
 docker compose up -d
 
-# Wait for healthy
 echo "Waiting for services to be healthy..."
 sleep 30
 
 print_ok "Containers started"
+
+# Get IP
+IP=$(hostname -I | awk '{print $1}')
 
 echo
 echo "========================================"
 echo " Installation Finished"
 echo "========================================"
 echo
-echo "ChatApp: http://$(hostname -I | awk '{print $1}'):8080"
-echo "Matrix:  http://$(hostname -I | awk '{print $1}'):8008"
+echo -e "ChatApp (Element): ${GREEN}http://$IP:8080${NC}"
+echo -e "Matrix API:        ${GREEN}http://$IP:8008${NC}"
 echo
-echo "For production, setup Nginx/Apache reverse proxy"
-echo "with SSL for: $CHAT_DOMAIN and $MATRIX_DOMAIN"
+echo "For HTTPS, setup reverse proxy with SSL"
+echo "for: $CHAT_DOMAIN and $MATRIX_DOMAIN"
 echo
 print_ok "Alex ChatApp installed successfully!"
+
+echo
+read -p "Press Enter to return to menu..."
