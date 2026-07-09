@@ -2,22 +2,17 @@
 set -e
 
 BASE_DIR="/opt/chatapp"
-SCRIPT_DIR="$BASE_DIR/scripts"
 
-# Source functions
-if [ -f "$SCRIPT_DIR/functions.sh" ]; then
-    source "$SCRIPT_DIR/functions.sh"
-else
-    echo "Error: functions.sh not found in $SCRIPT_DIR"
-    exit 1
-fi
+# Simple print functions (no dependency on functions.sh)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-if [ -f "$SCRIPT_DIR/docker.sh" ]; then
-    source "$SCRIPT_DIR/docker.sh"
-else
-    echo "Error: docker.sh not found in $SCRIPT_DIR"
-    exit 1
-fi
+print_info() { echo -e "${CYAN}[i]${NC} $1"; }
+print_ok() { echo -e "${GREEN}[✔]${NC} $1"; }
+print_error() { echo -e "${RED}[✘]${NC} $1"; }
 
 clear
 echo
@@ -32,18 +27,28 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Check OS
 print_info "Checking operating system..."
 if [ -f /etc/os-release ]; then
     source /etc/os-release
     echo "OS: $PRETTY_NAME"
-else
-    print_error "Unknown OS"
-    exit 1
 fi
 
+# Check Docker
 print_info "Checking Docker..."
-check_docker
-check_compose
+if ! command -v docker &>/dev/null; then
+    print_info "Docker not found. Installing..."
+    curl -fsSL https://get.docker.com | sh
+fi
+print_ok "Docker installed"
+
+# Check Docker Compose
+print_info "Checking Docker Compose..."
+if ! docker compose version &>/dev/null; then
+    print_error "Docker Compose not found"
+    exit 1
+fi
+print_ok "Docker Compose plugin available"
 
 echo
 echo "========================================"
@@ -65,7 +70,6 @@ REGISTRATION_SECRET=$(openssl rand -hex 16)
 MACAROON_SECRET=$(openssl rand -hex 16)
 FORM_SECRET=$(openssl rand -hex 16)
 
-# Save to .env
 cat > "$BASE_DIR/.env" <<ENVEOF
 CHAT_DOMAIN=$CHAT_DOMAIN
 MATRIX_DOMAIN=$MATRIX_DOMAIN
@@ -77,12 +81,10 @@ ENVEOF
 chmod 600 "$BASE_DIR/.env"
 print_ok "Environment created"
 
-# Create directories
 print_info "Creating directories..."
 mkdir -p "$BASE_DIR"/{postgres,synapse,element,backups}
 print_ok "Directories created"
 
-# Generate docker-compose.yml
 print_info "Generating docker-compose.yml..."
 cat > "$BASE_DIR/docker-compose.yml" <<COMPOSE
 services:
@@ -150,7 +152,6 @@ networks:
     driver: bridge
 COMPOSE
 
-# Generate homeserver.yaml
 print_info "Generating homeserver.yaml..."
 cat > "$BASE_DIR/synapse/homeserver.yaml" <<HOMESERVER
 server_name: "$MATRIX_DOMAIN"
@@ -190,7 +191,6 @@ enable_registration_without_verification: true
 max_upload_size: 500M
 HOMESERVER
 
-# Generate element config
 print_info "Generating element config..."
 cat > "$BASE_DIR/element/config.json" <<ELEMENT
 {
@@ -200,43 +200,29 @@ cat > "$BASE_DIR/element/config.json" <<ELEMENT
             "server_name": "$MATRIX_DOMAIN"
         }
     },
-    "brand": "Alex ChatApp",
-    "roomDirectory": {
-        "servers": ["matrix.org"]
-    }
+    "brand": "Alex ChatApp"
 }
 ELEMENT
 
-# Fix permissions for synapse
 chown -R 991:991 "$BASE_DIR/synapse" 2>/dev/null || true
 print_ok "Configuration generated"
 
-# Start Docker
 print_info "Starting Docker services..."
 cd "$BASE_DIR"
 docker compose down --remove-orphans 2>/dev/null || true
 docker compose up -d
-
-echo "Waiting for services to be healthy..."
 sleep 30
-
 print_ok "Containers started"
 
-# Get IP
 IP=$(hostname -I | awk '{print $1}')
-
 echo
 echo "========================================"
 echo " Installation Finished"
 echo "========================================"
 echo
-echo -e "ChatApp (Element): ${GREEN}http://$IP:8080${NC}"
-echo -e "Matrix API:        ${GREEN}http://$IP:8008${NC}"
+echo "ChatApp: http://$IP:8080"
+echo "Matrix:  http://$IP:8008"
 echo
-echo "For HTTPS, setup reverse proxy with SSL"
-echo "for: $CHAT_DOMAIN and $MATRIX_DOMAIN"
+print_ok "Done!"
 echo
-print_ok "Alex ChatApp installed successfully!"
-
-echo
-read -p "Press Enter to return to menu..."
+read -p "Press Enter..."
