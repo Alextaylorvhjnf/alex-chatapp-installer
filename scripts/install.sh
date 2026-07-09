@@ -217,8 +217,6 @@ print_ok "Containers started"
 
 echo "========================================"
 echo
-echo "ChatApp: http://$IP:8080"
-echo "Matrix:  http://$IP:8008"
 echo
 echo
 echo "========================================"
