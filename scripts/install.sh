@@ -215,14 +215,18 @@ docker compose up -d
 sleep 30
 print_ok "Containers started"
 
-IP=$(hostname -I | awk '{print $1}')
+echo "========================================"
+echo
+echo "ChatApp: http://$IP:8080"
+echo "Matrix:  http://$IP:8008"
+echo
 echo
 echo "========================================"
 echo " Installation Finished"
 echo "========================================"
 echo
-echo "ChatApp: http://$IP:8080"
-echo "Matrix:  http://$IP:8008"
+echo "ChatApp: https://$CHAT_DOMAIN"
+echo "Matrix:  https://$MATRIX_DOMAIN"
 echo
 print_ok "Done!"
 echo
