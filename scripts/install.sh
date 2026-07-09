@@ -216,7 +216,9 @@ docker compose up -d
 sleep 30
 print_ok "Containers started"
 
+# =====================================
 # Setup Nginx and SSL
+# =====================================
 print_info "Setting up Nginx and SSL..."
 
 apt install -y nginx certbot python3-certbot-nginx 2>/dev/null
@@ -224,7 +226,58 @@ apt install -y nginx certbot python3-certbot-nginx 2>/dev/null
 systemctl stop apache2 2>/dev/null || true
 systemctl disable apache2 2>/dev/null || true
 
+# STEP 1: Temp config WITHOUT SSL (so certbot can verify)
 cat > /etc/nginx/sites-available/chatapp <<NGINX
+server {
+    listen 80;
+    server_name $CHAT_DOMAIN;
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name $MATRIX_DOMAIN;
+    location /_matrix {
+        proxy_pass http://localhost:8008;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location /_synapse {
+        proxy_pass http://localhost:8008;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+NGINX
+
+ln -sf /etc/nginx/sites-available/chatapp /etc/nginx/sites-enabled/chatapp
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl restart nginx
+print_ok "Nginx temp config ready"
+
+# STEP 2: Get SSL
+print_info "Getting SSL certificates..."
+if certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN --non-interactive --agree-tos --email admin@${CHAT_DOMAIN#*.} 2>&1; then
+    SSL_OK=1
+    print_ok "SSL obtained"
+else
+    SSL_OK=0
+    print_error "SSL failed - will continue with HTTP only"
+fi
+
+# STEP 3: Final config with SSL (if obtained)
+if [ "$SSL_OK" = "1" ]; then
+    cat > /etc/nginx/sites-available/chatapp <<NGINX
 server {
     listen 80;
     server_name $CHAT_DOMAIN;
@@ -234,10 +287,8 @@ server {
 server {
     listen 443 ssl http2;
     server_name $CHAT_DOMAIN;
-
     ssl_certificate /etc/letsencrypt/live/$CHAT_DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$CHAT_DOMAIN/privkey.pem;
-
     location / {
         proxy_pass http://localhost:8080;
         proxy_set_header Host \$host;
@@ -256,10 +307,8 @@ server {
 server {
     listen 443 ssl http2;
     server_name $MATRIX_DOMAIN;
-
     ssl_certificate /etc/letsencrypt/live/$CHAT_DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$CHAT_DOMAIN/privkey.pem;
-
     location /_matrix {
         proxy_pass http://localhost:8008;
         proxy_set_header Host \$host;
@@ -267,7 +316,6 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
-
     location /_synapse {
         proxy_pass http://localhost:8008;
         proxy_set_header Host \$host;
@@ -277,28 +325,24 @@ server {
     }
 }
 NGINX
-
-ln -sf /etc/nginx/sites-available/chatapp /etc/nginx/sites-enabled/chatapp
-rm -f /etc/nginx/sites-enabled/default
-nginx -t && systemctl restart nginx
-
-# Get SSL
-print_info "Getting SSL certificates..."
-certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN --non-interactive --agree-tos --email admin@${CHAT_DOMAIN#*.} 2>&1 || {
-    print_error "SSL failed. Check DNS and run: certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN"
-}
-
-# Reload Nginx with final config after SSL
-nginx -t && systemctl reload nginx
-print_ok "SSL configured"
+    nginx -t && systemctl reload nginx
+    print_ok "SSL configured"
+else
+    print_error "SSL failed. Run manually: certbot --nginx -d $CHAT_DOMAIN -d $MATRIX_DOMAIN"
+fi
 
 echo
 echo "========================================"
 echo " Installation Finished"
 echo "========================================"
 echo
-echo "ChatApp: https://$CHAT_DOMAIN"
-echo "Matrix:  https://$MATRIX_DOMAIN"
+if [ "$SSL_OK" = "1" ]; then
+    echo "ChatApp: https://$CHAT_DOMAIN"
+    echo "Matrix:  https://$MATRIX_DOMAIN"
+else
+    echo "ChatApp: http://$CHAT_DOMAIN"
+    echo "Matrix:  http://$MATRIX_DOMAIN"
+fi
 echo
 print_ok "Done!"
 echo
