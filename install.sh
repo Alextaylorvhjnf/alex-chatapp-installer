@@ -23,41 +23,33 @@ if [ ! -f /opt/chatapp/scripts/install.sh ]; then
     echo "║          Alex ChatApp - One-Line Install     ║"
     echo "╚══════════════════════════════════════════════╝"
     echo -e "${NC}"
-    
+
     [ "$EUID" -ne 0 ] && { echo -e "${RED}Run as root!${NC}"; exit 1; }
-    
+
     echo -e "${CYAN}[i]${NC} Installing Alex ChatApp..."
-    
-    # Clean and clone
     rm -rf /opt/chatapp
     git clone https://github.com/Alextaylorvhjnf/alex-chatapp-installer.git /opt/chatapp
     cd /opt/chatapp
     chmod +x install.sh
-    
     echo -e "${GREEN}[✔]${NC} Starting installer..."
-    bash scripts/install.sh
+    bash /opt/chatapp/scripts/install.sh
     exit 0
 fi
 
 # =============================================
 # NORMAL MENU MODE
 # =============================================
-BASE_DIR="/opt/chatapp"
-SCRIPTS_DIR="/opt/chatapp/scripts"
 
 logo() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════╗"
-    echo "║                                              ║"
     echo "║        █████╗ ██╗     ███████╗██╗  ██╗       ║"
     echo "║       ██╔══██╗██║     ██╔════╝╚██╗██╔╝       ║"
     echo "║       ███████║██║     █████╗   ╚███╔╝        ║"
     echo "║       ██╔══██║██║     ██╔══╝   ██╔██╗        ║"
     echo "║       ██║  ██║███████╗███████╗██╔╝ ██╗       ║"
     echo "║       ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝       ║"
-    echo "║                                              ║"
     echo "║          Alex ChatApp Installer              ║"
-    echo "║          Matrix + Synapse + Element          ║"
     echo "║          Version: $VERSION                       ║"
     echo "╚══════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -106,24 +98,21 @@ while true; do
     system_info
     main_menu
     read -p "Select option: " choice
-    SCRIPT=""
     case $choice in
-        1) SCRIPT="$SCRIPTS_DIR/install.sh" ;;
-        2) SCRIPT="$SCRIPTS_DIR/update.sh" ;;
-        3) SCRIPT="$SCRIPTS_DIR/backup.sh" ;;
-        4) SCRIPT="$SCRIPTS_DIR/cleanup.sh" ;;
-        5) SCRIPT="$SCRIPTS_DIR/status.sh" ;;
-        6) SCRIPT="$SCRIPTS_DIR/ssl.sh" ;;
-        7) SCRIPT="$SCRIPTS_DIR/admin.sh" ;;
-        8) SCRIPT="$SCRIPTS_DIR/security.sh" ;;
-        9) SCRIPT="$SCRIPTS_DIR/repair.sh" ;;
-        10) SCRIPT="$SCRIPTS_DIR/logs.sh" ;;
-        11) SCRIPT="$SCRIPTS_DIR/service.sh" ;;
-        12) SCRIPT="$SCRIPTS_DIR/database.sh" ;;
-        13) SCRIPT="$SCRIPTS_DIR/health.sh" ;;
+        1) bash /opt/chatapp/scripts/install.sh; read -p "Press Enter..." ;;
+        2) bash /opt/chatapp/scripts/update.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        3) bash /opt/chatapp/scripts/backup.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        4) bash /opt/chatapp/scripts/cleanup.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        5) bash /opt/chatapp/scripts/status.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        6) bash /opt/chatapp/scripts/ssl.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        7) bash /opt/chatapp/scripts/admin.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        8) bash /opt/chatapp/scripts/security.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        9) bash /opt/chatapp/scripts/repair.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        10) bash /opt/chatapp/scripts/logs.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        11) bash /opt/chatapp/scripts/service.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        12) bash /opt/chatapp/scripts/database.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        13) bash /opt/chatapp/scripts/health.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
         0) echo "Goodbye!"; exit 0 ;;
-        *) echo -e "${RED}Invalid!${NC}"; sleep 1; continue ;;
+        *) echo -e "${RED}Invalid!${NC}"; sleep 1 ;;
     esac
-    [ -f "$SCRIPT" ] && bash "$SCRIPT" || echo "Coming soon..."
-    read -p "Press Enter..."
 done
