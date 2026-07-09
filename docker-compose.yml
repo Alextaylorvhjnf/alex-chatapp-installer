@@ -8,29 +8,42 @@ services:
     restart: always
     environment:
       POSTGRES_USER: synapse
-      POSTGRES_PASSWORD: SynapseDB2024Secure
+      POSTGRES_PASSWORD: aA0922ny@
       POSTGRES_DB: synapse
-      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres:/var/lib/postgresql/data
     networks:
       - chatapp
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   synapse:
     image: matrixdotorg/synapse:v1.156.0
     container_name: chatapp-synapse
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8008:8008"
       - "8448:8448"
     volumes:
       - ./synapse:/data
+    environment:
+      - SYNAPSE_SERVER_NAME=matrix.shikpooshaan.ir
+      - SYNAPSE_REPORT_STATS=no
     networks:
       - chatapp
-
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fSs http://localhost:8008/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   element:
     image: vectorim/element-web:latest
@@ -38,34 +51,18 @@ services:
     restart: unless-stopped
     ports:
       - "8080:80"
+    volumes:
+      - ./element/config.json:/app/config.json
     networks:
       - chatapp
-
 
   coturn:
     image: coturn/coturn:latest
     container_name: chatapp-coturn
     restart: unless-stopped
-    network_mode: host  # تغییر این خط
-    command:
-      - turnserver
-      - --listening-ip=45.129.36.41
-      - --relay-ip=45.129.36.41
-      - --external-ip=45.129.36.41
-      - --realm=shikpooshaan.ir
-      - --server-name=shikpooshaan.ir
-      - --lt-cred-mech
-      - --use-auth-secret
-      - --static-auth-secret=6f1e4518d8208cbc2f3e4aba926dee30f13363fd2d6b616922190d31a6d31f2d
-      - --fingerprint
-      - --no-cli
-      - --min-port=49160
-      - --max-port=49200
-
-
-volumes:
-  postgres_data:
-
+    network_mode: host
+    volumes:
+      - ./coturn.conf:/etc/coturn/turnserver.conf
 
 networks:
   chatapp:
