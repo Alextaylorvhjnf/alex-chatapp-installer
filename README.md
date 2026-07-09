@@ -1,7 +1,6 @@
-```bash
-cd /opt/chatapp
 
-cat > README.md << 'EOF'
+
+
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/ubuntu-22.04%20%7C%2024.04-orange" alt="Ubuntu">
