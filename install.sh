@@ -8,9 +8,7 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# =============================================
-# CURL PIPE MODE - First time install
-# =============================================
+# CURL PIPE MODE
 if [ ! -f /opt/chatapp/scripts/install.sh ]; then
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════╗"
@@ -23,22 +21,14 @@ if [ ! -f /opt/chatapp/scripts/install.sh ]; then
     echo "║          Alex ChatApp - One-Line Install     ║"
     echo "╚══════════════════════════════════════════════╝"
     echo -e "${NC}"
-
-    [ "$EUID" -ne 0 ] && { echo -e "${RED}Run as root!${NC}"; exit 1; }
-
-    echo -e "${CYAN}[i]${NC} Installing Alex ChatApp..."
+    [ "$EUID" -ne 0 ] && { echo "Run as root!"; exit 1; }
+    echo "[i] Installing..."
     rm -rf /opt/chatapp
     git clone https://github.com/Alextaylorvhjnf/alex-chatapp-installer.git /opt/chatapp
     cd /opt/chatapp
-    chmod +x install.sh
-    echo -e "${GREEN}[✔]${NC} Starting installer..."
-    bash /opt/chatapp/scripts/install.sh
+    bash scripts/install.sh
     exit 0
 fi
-
-# =============================================
-# NORMAL MENU MODE
-# =============================================
 
 logo() {
     echo -e "${CYAN}"
@@ -90,7 +80,7 @@ main_menu() {
     echo -e "${NC}"
 }
 
-[ "$EUID" -ne 0 ] && { echo -e "${RED}Run as root!${NC}"; exit 1; }
+[ "$EUID" -ne 0 ] && { echo "Run as root!"; exit 1; }
 
 while true; do
     clear
@@ -99,20 +89,20 @@ while true; do
     main_menu
     read -p "Select option: " choice
     case $choice in
-        1) bash /opt/chatapp/scripts/install.sh; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        2) bash /opt/chatapp/scripts/update.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        3) bash /opt/chatapp/scripts/backup.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        4) bash /opt/chatapp/scripts/cleanup.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        5) bash /opt/chatapp/scripts/status.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        6) bash /opt/chatapp/scripts/ssl.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        7) bash /opt/chatapp/scripts/admin.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        8) bash /opt/chatapp/scripts/security.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        9) bash /opt/chatapp/scripts/repair.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        10) bash /opt/chatapp/scripts/logs.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        11) bash /opt/chatapp/scripts/service.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        12) bash /opt/chatapp/scripts/database.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
-        13) bash /opt/chatapp/scripts/health.sh 2>/dev/null || echo "Coming soon..."; read -s -n 1 -p "Press any key to return..." </dev/tty; echo
+        1) bash /opt/chatapp/scripts/install.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        2) bash /opt/chatapp/scripts/update.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        3) bash /opt/chatapp/scripts/backup.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        4) bash /opt/chatapp/scripts/cleanup.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        5) bash /opt/chatapp/scripts/status.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        6) bash /opt/chatapp/scripts/ssl.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        7) bash /opt/chatapp/scripts/admin.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        8) bash /opt/chatapp/scripts/security.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        9) bash /opt/chatapp/scripts/repair.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        10) bash /opt/chatapp/scripts/logs.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        11) bash /opt/chatapp/scripts/service.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        12) bash /opt/chatapp/scripts/database.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
+        13) bash /opt/chatapp/scripts/health.sh; read -s -n 1 -p "Press any key..." </dev/tty; echo ;;
         0) echo "Goodbye!"; exit 0 ;;
-        *) echo -e "${RED}Invalid!${NC}"; sleep 1 ;;
+        *) echo "Invalid!"; sleep 1 ;;
     esac
 done
