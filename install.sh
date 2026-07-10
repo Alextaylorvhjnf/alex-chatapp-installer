@@ -99,19 +99,19 @@ while true; do
     main_menu
     read -p "Select option: " choice
     case $choice in
-        1) bash /opt/chatapp/scripts/install.sh; read -p "Press Enter..." ;;
-        2) bash /opt/chatapp/scripts/update.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        3) bash /opt/chatapp/scripts/backup.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        4) bash /opt/chatapp/scripts/cleanup.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        5) bash /opt/chatapp/scripts/status.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        6) bash /opt/chatapp/scripts/ssl.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        7) bash /opt/chatapp/scripts/admin.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        8) bash /opt/chatapp/scripts/security.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        9) bash /opt/chatapp/scripts/repair.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        10) bash /opt/chatapp/scripts/logs.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        11) bash /opt/chatapp/scripts/service.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        12) bash /opt/chatapp/scripts/database.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
-        13) bash /opt/chatapp/scripts/health.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter..." ;;
+        1) bash /opt/chatapp/scripts/install.sh; read -p "Press Enter to return..." </dev/tty ;;
+        2) bash /opt/chatapp/scripts/update.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        3) bash /opt/chatapp/scripts/backup.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        4) bash /opt/chatapp/scripts/cleanup.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        5) bash /opt/chatapp/scripts/status.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        6) bash /opt/chatapp/scripts/ssl.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        7) bash /opt/chatapp/scripts/admin.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        8) bash /opt/chatapp/scripts/security.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        9) bash /opt/chatapp/scripts/repair.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        10) bash /opt/chatapp/scripts/logs.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        11) bash /opt/chatapp/scripts/service.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        12) bash /opt/chatapp/scripts/database.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
+        13) bash /opt/chatapp/scripts/health.sh 2>/dev/null || echo "Coming soon..."; read -p "Press Enter to return..." </dev/tty ;;
         0) echo "Goodbye!"; exit 0 ;;
         *) echo -e "${RED}Invalid!${NC}"; sleep 1 ;;
     esac
