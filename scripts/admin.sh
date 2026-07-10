@@ -23,7 +23,7 @@ case $opt in
         echo
         docker exec chatapp-postgres psql -U synapse -d synapse -c "SELECT name, admin, deactivated FROM users ORDER BY name;" 2>/dev/null
         echo
-        echo -n "Press Enter to return..."
+        read -s -n 1 -p "Press any key..." </dev/tty
         read
         ;;
         
@@ -46,7 +46,7 @@ case $opt in
             echo
             [ -n "$p" ] && username=$(echo "$selected" | sed 's/@.*//') && is_admin=$(docker exec chatapp-postgres psql -U synapse -d synapse -t -c "SELECT admin FROM users WHERE name = '$selected';" 2>/dev/null | tr -d ' ') && admin_flag="--no-admin" && [ "$is_admin" = "1" ] && admin_flag="--admin" && echo -e "$p\n$p" | docker exec -i chatapp-synapse register_new_matrix_user http://localhost:8008 -c /data/homeserver.yaml -u "$username" -p "$p" $admin_flag 2>&1 && echo "Password reset!"
         fi
-        echo -n "Press Enter to return..."
+        read -s -n 1 -p "Press any key..." </dev/tty
         read
         ;;
         
@@ -67,7 +67,7 @@ case $opt in
             docker exec chatapp-postgres psql -U synapse -d synapse -c "DELETE FROM refresh_tokens WHERE user_id = '$selected';" 2>/dev/null
             echo "$selected deactivated and kicked out!"
         fi
-        echo -n "Press Enter to return..."
+        read -s -n 1 -p "Press any key..." </dev/tty
         read
         ;;
         
@@ -94,7 +94,7 @@ case $opt in
                 echo "$selected deleted and kicked out!"
             fi
         fi
-        echo -n "Press Enter to return..."
+        read -s -n 1 -p "Press any key..." </dev/tty
         read
         ;;
         
@@ -104,12 +104,12 @@ case $opt in
         echo -n "Password: "
         read -s p
         echo
-        [ -z "$u" ] || [ -z "$p" ] && { echo "Required!"; read -p "Press Enter..."; exit 0; }
+        [ -z "$u" ] || [ -z "$p" ] && { echo "Required!"; read -s -n 1 -p "Press any key..." </dev/tty; }
         flag="--no-admin"
         [ "$opt" = "2" ] && flag="--admin"
         docker exec chatapp-synapse register_new_matrix_user http://localhost:8008 -c /data/homeserver.yaml -u "$u" -p "$p" $flag 2>&1
         echo "Done! @${u}:matrix.shikpooshaan.ir"
-        echo -n "Press Enter to return..."
+        read -s -n 1 -p "Press any key..." </dev/tty
         read
         ;;
 esac

@@ -116,5 +116,5 @@ esac
 
 echo
 
-read -p "Press Enter..."
+read -s -n 1 -p "Press any key to return..." </dev/tty; echo
 
