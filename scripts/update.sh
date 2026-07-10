@@ -1,142 +1,33 @@
 #!/bin/bash
 
-set -e
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-
-BASE_DIR="/opt/chatapp"
-
-
-source $BASE_DIR/scripts/functions.sh
-
+print_ok() { echo -e "${GREEN}[✔]${NC} $1"; }
+print_info() { echo -e "${CYAN}[i]${NC} $1"; }
+print_error() { echo -e "${RED}[✘]${NC} $1"; }
 
 clear
-
-
 echo
 echo "========================================"
-echo "       Alex ChatApp Update Manager"
+echo "       Alex ChatApp Updater"
 echo "========================================"
 echo
 
-
-
-require_root
-
-
-
-cd $BASE_DIR
-
-
-
-# ==============================
-# Backup Before Update
-# ==============================
-
-
-print_info "Creating backup before update..."
-
-
-if [ -f "$BASE_DIR/scripts/backup.sh" ]
-
-then
-
-    bash $BASE_DIR/scripts/backup.sh
-
-else
-
-    print_warning "Backup script not found"
-
-fi
-
-
-
-# ==============================
-# Git Update
-# ==============================
-
-
-print_info "Updating source code from GitHub..."
-
-
-if [ -d ".git" ]
-
-then
-
-    git fetch origin
-
-    git pull origin main
-
-    print_ok "Source updated"
-
-else
-
-    print_warning "Git repository not detected"
-
-fi
-
-
-
-# ==============================
-# Docker Update
-# ==============================
-
+print_info "Updating from GitHub..."
+cd /opt/chatapp
+git pull origin main 2>&1 && print_ok "Code updated" || print_error "Git pull failed"
 
 print_info "Pulling latest Docker images..."
+docker-compose pull 2>&1 && print_ok "Images pulled" || print_error "Pull failed"
 
-
-docker-compose pull
-
-
-print_ok "Docker images updated"
-
-
-
-# ==============================
-# Recreate Services
-# ==============================
-
-
-print_info "Restarting ChatApp services..."
-
-
-docker-compose up -d --remove-orphans
-
-
-print_ok "Containers restarted"
-
-
-
-# ==============================
-# Cleanup
-# ==============================
-
-
-print_info "Cleaning unused Docker images..."
-
-
-docker image prune -f
-
-
-
-# ==============================
-# Status
-# ==============================
-
+print_info "Restarting services..."
+docker-compose up -d 2>&1 && print_ok "Services restarted" || print_error "Restart failed"
 
 echo
-
-print_info "Current container status"
-
-
-docker ps \
---format "table {{.Names}}\t{{.Status}}"
-
-
-
+print_ok "Update complete!"
 echo
-
-echo "========================================"
-
-echo " Update completed successfully"
-
-echo "========================================"
+read -s -n 1 -p "Press any key to return..." </dev/tty
+echo
